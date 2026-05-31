@@ -1,6 +1,59 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+//24小时趋势图，关键指标为静态数据
+import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
 import * as echarts from 'echarts'
+
+import {useWebSocket} from "../websocket/index.js";
+import {boardStore} from "../stores/board";
+import {storeToRefs} from "pinia";
+
+const useBoardState = boardStore()
+
+let {abnormalDevices,workshopDevices,faultTableData,keyMetrics,trendData,deviceStatusData}= storeToRefs(useBoardState)
+
+let {getBoardData} = useBoardState
+
+
+const connectionStatus = ref('disconnected')
+const reconnectAttempts = ref(0)
+
+let ws = null
+
+function connectWebSocket() {
+  ws = useWebSocket()
+
+  ws.onOpen(() => {
+    connectionStatus.value = 'connected'
+    reconnectAttempts.value = 0
+    console.log('✅ WebSocket 连接成功')
+  })
+
+  ws.onMessage((event) => {
+    try {
+      const message = JSON.parse(event.data)
+      console.log(message)
+
+    } catch (error) {
+      console.error('解析消息失败:', error)
+    }
+  })
+
+  ws.onClose(() => {
+    connectionStatus.value = 'disconnected'
+    console.log('❌ WebSocket 连接关闭')
+  })
+
+  ws.onError((error) => {
+    console.error('WebSocket 错误:', error)
+  })
+
+  ws.onReconnect((attempts) => {
+    reconnectAttempts.value = attempts
+    console.log(`🔄 第 ${attempts} 次重连`)
+  })
+
+  ws.connect()
+}
 
 const statusChartRef = ref(null)
 const trendChartRef = ref(null)
@@ -18,78 +71,10 @@ const systemInfo = ref({
   networkStatus: '正常'
 })
 
-const deviceStatusData = ref({
-  online: 45,
-  offline: 8,
-  fault: 3,
-  standby: 12
-})
 
-const abnormalDevices = ref([
-  { id: 'DEV001', name: 'CNC机床-01', location: '车间A-3', errorCode: 'E-301', errorDesc: '主轴温度过高', duration: '2小时15分', level: 'fault' },
-  { id: 'DEV002', name: '注塑机-05', location: '车间B-7', errorCode: 'W-102', errorDesc: '液压油压力异常', duration: '45分钟', level: 'high' },
-  { id: 'DEV003', name: '冲压机-12', location: '车间A-9', errorCode: 'E-205', errorDesc: '模具卡死', duration: '1小时30分', level: 'fault' },
-  { id: 'DEV004', name: '焊接机器人-03', location: '车间C-2', errorCode: 'W-308', errorDesc: '焊丝送丝不畅', duration: '20分钟', level: 'high' },
-  { id: 'DEV005', name: '装配线-08', location: '车间B-4', errorCode: 'E-110', errorDesc: '传送带偏移', duration: '3小时', level: 'fault' },
-  { id: 'DEV006', name: '包装机-02', location: '车间A-11', errorCode: 'W-201', errorDesc: '包装材料不足', duration: '15分钟', level: 'high' },
-  { id: 'DEV007', name: '切割机-06', location: '车间C-5', errorCode: 'E-402', errorDesc: '刀片磨损严重', duration: '50分钟', level: 'fault' }
-])
 
-const workshopDevices = ref([
-  { id: 'D001', name: 'CNC-01', status: 'online', x: 0, y: 0 },
-  { id: 'D002', name: 'CNC-02', status: 'online', x: 1, y: 0 },
-  { id: 'D003', name: 'CNC-03', status: 'fault', x: 2, y: 0 },
-  { id: 'D004', name: 'CNC-04', status: 'online', x: 3, y: 0 },
-  { id: 'D005', name: 'CNC-05', status: 'standby', x: 4, y: 0 },
-  { id: 'D006', name: 'CNC-06', status: 'online', x: 5, y: 0 },
-  { id: 'D007', name: 'CNC-07', status: 'online', x: 6, y: 0 },
-  { id: 'D008', name: 'CNC-08', status: 'offline', x: 7, y: 0 },
 
-  { id: 'D009', name: '注塑-01', status: 'online', x: 0, y: 1 },
-  { id: 'D010', name: '注塑-02', status: 'online', x: 1, y: 1 },
-  { id: 'D011', name: '注塑-03', status: 'warning', x: 2, y: 1 },
-  { id: 'D012', name: '注塑-04', status: 'online', x: 3, y: 1 },
-  { id: 'D013', name: '注塑-05', status: 'fault', x: 4, y: 1 },
-  { id: 'D014', name: '注塑-06', status: 'online', x: 5, y: 1 },
-  { id: 'D015', name: '注塑-07', status: 'online', x: 6, y: 1 },
-  { id: 'D016', name: '注塑-08', status: 'online', x: 7, y: 1 },
 
-  { id: 'D017', name: '冲压-01', status: 'online', x: 0, y: 2 },
-  { id: 'D018', name: '冲压-02', status: 'online', x: 1, y: 2 },
-  { id: 'D019', name: '冲压-03', status: 'online', x: 2, y: 2 },
-  { id: 'D020', name: '冲压-04', status: 'standby', x: 3, y: 2 },
-  { id: 'D021', name: '冲压-05', status: 'online', x: 4, y: 2 },
-  { id: 'D022', name: '冲压-06', status: 'online', x: 5, y: 2 },
-  { id: 'D023', name: '冲压-07', status: 'fault', x: 6, y: 2 },
-  { id: 'D024', name: '冲压-08', status: 'online', x: 7, y: 2 },
-
-  { id: 'D025', name: '焊接-01', status: 'online', x: 0, y: 3 },
-  { id: 'D026', name: '焊接-02', status: 'online', x: 1, y: 3 },
-  { id: 'D027', name: '焊接-03', status: 'warning', x: 2, y: 3 },
-  { id: 'D028', name: '焊接-04', status: 'online', x: 3, y: 3 },
-  { id: 'D029', name: '焊接-05', status: 'online', x: 4, y: 3 },
-  { id: 'D030', name: '焊接-06', status: 'online', x: 5, y: 3 },
-  { id: 'D031', name: '焊接-07', status: 'online', x: 6, y: 3 },
-  { id: 'D032', name: '焊接-08', status: 'offline', x: 7, y: 3 },
-
-  { id: 'D033', name: '装配-01', status: 'online', x: 0, y: 4 },
-  { id: 'D034', name: '装配-02', status: 'online', x: 1, y: 4 },
-  { id: 'D035', name: '装配-03', status: 'fault', x: 2, y: 4 },
-  { id: 'D036', name: '装配-04', status: 'online', x: 3, y: 4 },
-  { id: 'D037', name: '装配-05', status: 'online', x: 4, y: 4 },
-  { id: 'D038', name: '装配-06', status: 'standby', x: 5, y: 4 },
-  { id: 'D039', name: '装配-07', status: 'online', x: 6, y: 4 },
-  { id: 'D040', name: '装配-08', status: 'online', x: 7, y: 4 }
-])
-
-const faultTableData = ref([
-  { key: '1', deviceId: 'DEV001', deviceName: 'CNC机床-01', faultCode: 'E-301', faultDesc: '主轴温度过高', location: '车间A-3', startTime: '08:20:15', duration: '2小时15分', status: '处理中', priority: '高' },
-  { key: '2', deviceId: 'DEV003', deviceName: '冲压机-12', faultCode: 'E-205', faultDesc: '模具卡死', location: '车间A-9', startTime: '09:05:30', duration: '1小时30分', status: '待维修', priority: '高' },
-  { key: '3', deviceId: 'DEV005', deviceName: '装配线-08', faultCode: 'E-110', faultDesc: '传送带偏移', location: '车间B-4', startTime: '07:35:45', duration: '3小时', status: '处理中', priority: '中' },
-  { key: '4', deviceId: 'DEV007', deviceName: '切割机-06', faultCode: 'E-402', faultDesc: '刀片磨损严重', location: '车间C-5', startTime: '09:45:20', duration: '50分钟', status: '待备件', priority: '中' },
-  { key: '5', deviceId: 'DEV002', deviceName: '注塑机-05', faultCode: 'W-102', faultDesc: '液压油压力异常', location: '车间B-7', startTime: '10:10:10', duration: '45分钟', status: '监控中', priority: '低' },
-  { key: '6', deviceId: 'DEV004', deviceName: '焊接机器人-03', faultCode: 'W-308', faultDesc: '焊丝送丝不畅', location: '车间C-2', startTime: '10:35:25', duration: '20分钟', status: '监控中', priority: '低' }
-])
 
 const totalDevices = computed(() => {
   return Object.values(deviceStatusData.value).reduce((sum, count) => sum + count, 0)
@@ -108,7 +93,7 @@ const initStatusChart = () => {
       top: 'middle',
       textStyle: {
         fontSize: 11,
-        color: '#fff'
+        color: '#000'
       }
     },
     series: [
@@ -127,7 +112,7 @@ const initStatusChart = () => {
           show: true,
           formatter: '{b}\n{c}',
           fontSize: 11,
-          color: '#fff'
+          color: '#000'
         },
         emphasis: {
           label: {
@@ -165,23 +150,23 @@ const initTrendChart = () => {
       type: 'category',
       boundaryGap: false,
       data: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.3)' } },
-      axisLabel: { color: '#fff', fontSize: 10 }
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.3)' } },
+      axisLabel: { color: '#000', fontSize: 10 }
     },
     yAxis: {
       type: 'value',
       name: '故障数',
-      nameTextStyle: { color: '#fff', fontSize: 10 },
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.3)' } },
-      axisLabel: { color: '#fff', fontSize: 10 },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } }
+      nameTextStyle: { color: '#000', fontSize: 10 },
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.3)' } },
+      axisLabel: { color: '#000', fontSize: 10 },
+      splitLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } }
     },
     series: [
       {
         name: '故障趋势',
         type: 'line',
         smooth: true,
-        data: [2, 1, 3, 5, 4, 6, 3],
+        data: trendData.value,
         itemStyle: { color: '#ff4d4f' },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
@@ -239,10 +224,17 @@ const getProgressColor = (percent) => {
 
 let timeInterval = null
 
+
 onMounted(() => {
+
+
+
+  connectWebSocket()
+
   initStatusChart()
   initTrendChart()
 
+  getBoardData()
   timeInterval = setInterval(() => {
     currentTime.value = new Date().toLocaleString('zh-CN')
   }, 1000)
@@ -254,13 +246,27 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (ws) {
+    ws.close()
+  }
+
   statusChart.dispose()
   trendChart.dispose()
 
   if (timeInterval) {
     clearInterval(timeInterval)
   }
+
+
 })
+
+watch( trendData ,(newData) => {
+  initTrendChart()
+}, { deep: true })
+
+watch(deviceStatusData ,(newData) => {
+  initStatusChart()
+},{deep: true})
 </script>
 
 <template>
@@ -310,27 +316,27 @@ onUnmounted(() => {
           <div class="stats-grid">
             <div class="stat-box">
               <div class="stat-label">总功率</div>
-              <div class="stat-value">1256<span class="unit">kW</span></div>
+              <div class="stat-value">{{ keyMetrics.power }}<span class="unit">kW</span></div>
             </div>
             <div class="stat-box">
               <div class="stat-label">运行时长</div>
-              <div class="stat-value">18.5<span class="unit">h</span></div>
+              <div class="stat-value">{{keyMetrics.operatingHours}}<span class="unit">h</span></div>
             </div>
             <div class="stat-box">
               <div class="stat-label">今日产量</div>
-              <div class="stat-value success">8956</div>
+              <div class="stat-value success">{{ keyMetrics.dailyProduction }}</div>
             </div>
             <div class="stat-box">
               <div class="stat-label">活跃告警</div>
-              <div class="stat-value danger">7</div>
+              <div class="stat-value danger">{{ keyMetrics.activeAlarms }}</div>
             </div>
             <div class="stat-box">
               <div class="stat-label">平均OEE</div>
-              <div class="stat-value success">82.3%</div>
+              <div class="stat-value success">{{  keyMetrics.averageOEE }}</div>
             </div>
             <div class="stat-box">
               <div class="stat-label">能耗成本</div>
-              <div class="stat-value">¥3420</div>
+              <div class="stat-value">¥{{ keyMetrics.cost }}</div>
             </div>
           </div>
         </div>
@@ -431,18 +437,7 @@ onUnmounted(() => {
             <span class="info-value status-normal">{{ systemInfo.networkStatus }}</span>
           </div>
         </div>
-        <div class="footer-center">
-          <div class="resource-monitor">
-            <div class="resource-item">
-              <span class="resource-label">CPU使用率</span>
-              <a-progress :percent="systemInfo.cpuUsage" :stroke-color="getProgressColor(systemInfo.cpuUsage)" size="small" style="width: 120px" />
-            </div>
-            <div class="resource-item">
-              <span class="resource-label">内存使用率</span>
-              <a-progress :percent="systemInfo.memoryUsage" :stroke-color="getProgressColor(systemInfo.memoryUsage)" size="small" style="width: 120px" />
-            </div>
-          </div>
-        </div>
+
         <div class="footer-right">
           <div class="time-display">
             <div class="current-time">{{ currentTime }}</div>
@@ -459,7 +454,7 @@ onUnmounted(() => {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1428 100%);
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 50%, #f0f2f5 100%);
   display: flex;
   flex-direction: column;
   padding: 12px;
@@ -478,9 +473,10 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 20px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .title-area {
@@ -499,7 +495,7 @@ onUnmounted(() => {
 
 .sub-title {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.5);
   margin: 0;
 }
 
@@ -514,8 +510,8 @@ onUnmounted(() => {
 }
 
 .alarm-scroll-bar {
-  background: rgba(255, 77, 79, 0.08);
-  border: 1px solid rgba(255, 77, 79, 0.2);
+  background: rgba(255, 77, 79, 0.05);
+  border: 1px solid rgba(255, 77, 79, 0.15);
   border-radius: 6px;
   padding: 8px 0;
   overflow: hidden;
@@ -534,7 +530,7 @@ onUnmounted(() => {
   gap: 8px;
   margin-right: 60px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(0, 0, 0, 0.85);
 }
 
 .alarm-dot {
@@ -566,15 +562,15 @@ onUnmounted(() => {
 
 .alarm-device-name {
   font-weight: 600;
-  color: #fff;
+  color: #000;
 }
 
 .alarm-separator {
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(0, 0, 0, 0.3);
 }
 
 .alarm-error {
-  color: #ff7875;
+  color: #ff4d4f;
 }
 
 .alarm-duration {
@@ -596,10 +592,11 @@ onUnmounted(() => {
 }
 
 .panel-card {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -609,7 +606,7 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 600;
   margin: 0 0 10px 0;
-  color: #fff;
+  color: #000;
 }
 
 .chart-panel {
@@ -637,7 +634,7 @@ onUnmounted(() => {
 }
 
 .stat-box {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.03);
   padding: 10px;
   border-radius: 6px;
   text-align: center;
@@ -645,19 +642,19 @@ onUnmounted(() => {
 
 .stat-label {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.5);
   margin-bottom: 6px;
 }
 
 .stat-value {
   font-size: 18px;
   font-weight: 700;
-  color: #fff;
+  color: #000;
 }
 
 .stat-value .unit {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.5);
   margin-left: 2px;
 }
 
@@ -670,12 +667,13 @@ onUnmounted(() => {
 }
 
 .center-panel {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   padding: 12px;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .workshop-container {
@@ -695,7 +693,7 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   margin: 0;
-  color: #fff;
+  color: #000;
 }
 
 .legend {
@@ -708,7 +706,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(0, 0, 0, 0.7);
 }
 
 .legend-dot {
@@ -731,8 +729,8 @@ onUnmounted(() => {
 }
 
 .machine-unit {
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+  border: 2px solid rgba(0, 0, 0, 0.1);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -746,39 +744,39 @@ onUnmounted(() => {
 
 .machine-unit:hover {
   transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 10;
 }
 
 .machine-unit.online {
   border-color: #52c41a;
-  background: rgba(82, 196, 26, 0.1);
+  background: rgba(82, 196, 26, 0.08);
 }
 
 .machine-unit.fault {
   border-color: #ff4d4f;
-  background: rgba(255, 77, 79, 0.15);
+  background: rgba(255, 77, 79, 0.1);
   animation: pulse-fault 2s infinite;
 }
 
 .machine-unit.standby {
   border-color: #faad14;
-  background: rgba(250, 173, 20, 0.1);
+  background: rgba(250, 173, 20, 0.08);
 }
 
 .machine-unit.offline {
   border-color: #8c8c8c;
-  background: rgba(140, 140, 140, 0.1);
+  background: rgba(140, 140, 140, 0.08);
 }
 
 .machine-unit.warning {
   border-color: #faad14;
-  background: rgba(250, 173, 20, 0.1);
+  background: rgba(250, 173, 20, 0.08);
 }
 
 @keyframes pulse-fault {
-  0%, 100% { box-shadow: 0 0 0 rgba(255, 77, 79, 0.4); }
-  50% { box-shadow: 0 0 12px rgba(255, 77, 79, 0.8); }
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 77, 79, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(255, 77, 79, 0.6); }
 }
 
 .machine-indicator {
@@ -795,7 +793,7 @@ onUnmounted(() => {
 
 .machine-name {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(0, 0, 0, 0.8);
   font-weight: 500;
   text-align: center;
 }
@@ -812,7 +810,7 @@ onUnmounted(() => {
   display: flex;
   gap: 8px;
   padding: 8px;
-  background: rgba(255, 77, 79, 0.08);
+  background: rgba(255, 77, 79, 0.05);
   border-radius: 6px;
   border-left: 3px solid #ff4d4f;
 }
@@ -828,13 +826,13 @@ onUnmounted(() => {
 .alert-title {
   font-size: 12px;
   font-weight: 600;
-  color: #fff;
+  color: #000;
   margin-bottom: 2px;
 }
 
 .alert-desc {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(0, 0, 0, 0.6);
   margin-bottom: 2px;
 }
 
@@ -845,12 +843,13 @@ onUnmounted(() => {
 
 .bottom-section {
   height: 30%;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   padding: 12px;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .table-container {
@@ -870,7 +869,7 @@ onUnmounted(() => {
   font-size: 14px;
   font-weight: 600;
   margin: 0;
-  color: #fff;
+  color: #000;
 }
 
 .footer-info {
@@ -879,9 +878,9 @@ onUnmounted(() => {
   align-items: center;
   padding: 12px 16px;
   margin-top: auto;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.03);
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .footer-left {
@@ -897,11 +896,11 @@ onUnmounted(() => {
 }
 
 .info-label {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .info-value {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(0, 0, 0, 0.85);
   font-weight: 500;
 }
 
@@ -927,7 +926,7 @@ onUnmounted(() => {
 
 .resource-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(0, 0, 0, 0.6);
   white-space: nowrap;
 }
 
@@ -945,24 +944,24 @@ onUnmounted(() => {
 .current-time {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: #000;
   font-family: 'Courier New', monospace;
 }
 
 .update-hint {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(0, 0, 0, 0.4);
 }
 
 :deep(.ant-table) {
   background: transparent;
-  color: #fff;
+  color: #000;
   font-size: 11px;
 }
 
 :deep(.ant-table-thead > tr > th) {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.85);
   font-weight: 600;
   padding: 6px 8px;
   font-size: 11px;
@@ -970,16 +969,16 @@ onUnmounted(() => {
 
 :deep(.ant-table-tbody > tr > td) {
   padding: 6px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   font-size: 11px;
 }
 
 :deep(.ant-table-tbody > tr:hover > td) {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 :deep(.ant-table-cell) {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(0, 0, 0, 0.85);
 }
 
 :deep(.ant-table-thead > tr > th::before) {
@@ -995,21 +994,21 @@ onUnmounted(() => {
 }
 
 :deep(.ant-table-tbody > tr:nth-child(odd)) {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 :deep(.ant-table-tbody > tr:nth-child(even)) {
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 :deep(.ant-table-tbody > tr:nth-child(odd):hover > td) {
-  background-color: rgba(102, 126, 234, 0.15) !important;
+  background-color: rgba(102, 126, 234, 0.12) !important;
 }
 
 
 
 :deep(.ant-table-tbody > tr:nth-child(even):hover > td) {
-  background-color: rgba(118, 75, 162, 0.15) !important;
+  background-color: rgba(118, 75, 162, 0.12) !important;
 }
 
 
@@ -1036,7 +1035,7 @@ onUnmounted(() => {
 }
 
 :deep(.ant-table-body)::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
   border-radius: 3px;
 }
 
