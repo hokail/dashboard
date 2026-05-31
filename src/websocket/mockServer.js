@@ -11,21 +11,57 @@ class MockWebSocketServer {
      * 构造函数
      * @param {string} url - WebSocket 服务器地址，默认 ws://localhost:8080
      */
-    constructor(url = 'ws://localhost:5173') {
+    constructor(url = 'ws://localhost:8080') {
         this.url = url
         this.server = null
         this.clients = new Set()
 
         // 模拟设备数据列表
         this.devices = [
-            { id: 'device-001', name: '温度传感器A', type: 'temperature', status: 'online', value: 25.5, unit: '°C', min: 20, max: 30 },
-            { id: 'device-002', name: '湿度传感器B', type: 'humidity', status: 'online', value: 60.2, unit: '%', min: 50, max: 70 },
-            { id: 'device-003', name: '压力传感器C', type: 'pressure', status: 'offline', value: 0, unit: 'kPa', min: 0, max: 100 },
-            { id: 'device-004', name: '流量计D', type: 'flow', status: 'online', value: 120.8, unit: 'L/min', min: 100, max: 150 },
-            { id: 'device-005', name: '电压表E', type: 'voltage', status: 'warning', value: 220.5, unit: 'V', min: 210, max: 230 },
-            { id: 'device-006', name: '电流表F', type: 'current', status: 'online', value: 15.3, unit: 'A', min: 10, max: 20 },
-            { id: 'device-007', name: '转速计G', type: 'speed', status: 'online', value: 1500, unit: 'rpm', min: 1000, max: 2000 },
-            { id: 'device-008', name: '液位传感器H', type: 'level', status: 'online', value: 75.6, unit: '%', min: 60, max: 90 }
+            { id: 'D001', name: 'CNC-01', status: 'online', x: 0, y: 0 },
+            { id: 'D002', name: 'CNC-02', status: 'online', x: 1, y: 0 },
+            { id: 'D003', name: 'CNC-03', status: 'fault', x: 2, y: 0 },
+            { id: 'D004', name: 'CNC-04', status: 'online', x: 3, y: 0 },
+            { id: 'D005', name: 'CNC-05', status: 'standby', x: 4, y: 0 },
+            { id: 'D006', name: 'CNC-06', status: 'online', x: 5, y: 0 },
+            { id: 'D007', name: 'CNC-07', status: 'online', x: 6, y: 0 },
+            { id: 'D008', name: 'CNC-08', status: 'offline', x: 7, y: 0 },
+
+            { id: 'D009', name: '注塑-01', status: 'online', x: 0, y: 1 },
+            { id: 'D010', name: '注塑-02', status: 'online', x: 1, y: 1 },
+            { id: 'D011', name: '注塑-03', status: 'warning', x: 2, y: 1 },
+            { id: 'D012', name: '注塑-04', status: 'online', x: 3, y: 1 },
+            { id: 'D013', name: '注塑-05', status: 'fault', x: 4, y: 1 },
+            { id: 'D014', name: '注塑-06', status: 'online', x: 5, y: 1 },
+            { id: 'D015', name: '注塑-07', status: 'online', x: 6, y: 1 },
+            { id: 'D016', name: '注塑-08', status: 'online', x: 7, y: 1 },
+
+            { id: 'D017', name: '冲压-01', status: 'online', x: 0, y: 2 },
+            { id: 'D018', name: '冲压-02', status: 'online', x: 1, y: 2 },
+            { id: 'D019', name: '冲压-03', status: 'online', x: 2, y: 2 },
+            { id: 'D020', name: '冲压-04', status: 'standby', x: 3, y: 2 },
+            { id: 'D021', name: '冲压-05', status: 'online', x: 4, y: 2 },
+            { id: 'D022', name: '冲压-06', status: 'online', x: 5, y: 2 },
+            { id: 'D023', name: '冲压-07', status: 'fault', x: 6, y: 2 },
+            { id: 'D024', name: '冲压-08', status: 'online', x: 7, y: 2 },
+
+            { id: 'D025', name: '焊接-01', status: 'online', x: 0, y: 3 },
+            { id: 'D026', name: '焊接-02', status: 'online', x: 1, y: 3 },
+            { id: 'D027', name: '焊接-03', status: 'warning', x: 2, y: 3 },
+            { id: 'D028', name: '焊接-04', status: 'online', x: 3, y: 3 },
+            { id: 'D029', name: '焊接-05', status: 'online', x: 4, y: 3 },
+            { id: 'D030', name: '焊接-06', status: 'online', x: 5, y: 3 },
+            { id: 'D031', name: '焊接-07', status: 'online', x: 6, y: 3 },
+            { id: 'D032', name: '焊接-08', status: 'offline', x: 7, y: 3 },
+
+            { id: 'D033', name: '装配-01', status: 'online', x: 0, y: 4 },
+            { id: 'D034', name: '装配-02', status: 'online', x: 1, y: 4 },
+            { id: 'D035', name: '装配-03', status: 'fault', x: 2, y: 4 },
+            { id: 'D036', name: '装配-04', status: 'online', x: 3, y: 4 },
+            { id: 'D037', name: '装配-05', status: 'online', x: 4, y: 4 },
+            { id: 'D038', name: '装配-06', status: 'standby', x: 5, y: 4 },
+            { id: 'D039', name: '装配-07', status: 'online', x: 6, y: 4 },
+            { id: 'D040', name: '装配-08', status: 'online', x: 7, y: 4 }
         ]
 
         this.pushTimer = null
@@ -110,6 +146,7 @@ class MockWebSocketServer {
      * @param {Object} socket - WebSocket 套接字对象
      */
     startPushingData(socket) {
+        console.log('🚀 启动定时数据推送')
         // 设置定时器，每 3 秒推送一次
         const timer = setInterval(() => {
             this.pushDeviceUpdate(socket)
@@ -148,20 +185,12 @@ class MockWebSocketServer {
             // 跳过离线设备，不推送其更新
             if (device.status === 'offline') continue
 
-            // 模拟数值波动：在 ±5% 范围内随机变化
-            const fluctuation = (Math.random() - 0.5) * 0.1 * device.value
-            const newValue = device.value + fluctuation
-
-            // 确保新值在合理范围内（min ~ max）
-            device.value = parseFloat(
-                Math.max(device.min || 0, Math.min(device.max || Infinity, newValue)).toFixed(2)
-            )
 
             // 小概率（5%）改变设备状态：在线/警告之间切换
-            if (Math.random() < 0.05) {
-                const statuses = ['online', 'warning']
+            // if (Math.random() < 0.05) {
+                const statuses = ['fault', 'fault']
                 device.status = statuses[Math.floor(Math.random() * statuses.length)]
-            }
+            // }
 
             // 深拷贝设备对象，避免引用问题
             updatedDevices.push(JSON.parse(JSON.stringify(device)))
@@ -262,7 +291,7 @@ let mockServerInstance = null
  * @param {string} url - WebSocket 服务器地址
  * @returns {MockWebSocketServer} MockWebSocketServer 实例
  */
-export function createMockServer(url = 'ws://localhost:5173') {
+export function createMockServer(url = 'ws://localhost:8080') {
     if (!mockServerInstance) {
         mockServerInstance = new MockWebSocketServer(url)
     }

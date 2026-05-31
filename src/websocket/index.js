@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
 const WS_URL = import.meta.env.DEV && import.meta.env.VITE_USE_WEBSOCKET_MOCK === 'true'
-    ? 'ws://localhost:5173'
+    ? 'ws://localhost:8080'
     : import.meta.env.VITE_WS_URL || 'ws://your-production-ws-server.com'
 
 class HeartbeatWebSocket {

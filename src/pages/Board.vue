@@ -31,8 +31,21 @@ function connectWebSocket() {
   ws.onMessage((event) => {
     try {
       const message = JSON.parse(event.data)
-      console.log(message)
 
+      if (message.type === 'device-status') {
+        const updates = Array.isArray(message.data) ? message.data : [message.data]
+
+        updates.forEach(update => {
+          const index = workshopDevices.value.findIndex(d => d.id === update.id)
+          if (index !== -1) {
+            workshopDevices.value[index] = {
+              ...update,
+              lastUpdate: Date.now()
+            }
+          }
+        })
+        console.log('设备状态更新成功')
+      }
     } catch (error) {
       console.error('解析消息失败:', error)
     }
@@ -55,6 +68,7 @@ function connectWebSocket() {
   ws.connect()
 }
 
+
 const statusChartRef = ref(null)
 const trendChartRef = ref(null)
 let statusChart = null
@@ -70,11 +84,6 @@ const systemInfo = ref({
   memoryUsage: 68.2,
   networkStatus: '正常'
 })
-
-
-
-
-
 
 const totalDevices = computed(() => {
   return Object.values(deviceStatusData.value).reduce((sum, count) => sum + count, 0)
@@ -267,6 +276,10 @@ watch( trendData ,(newData) => {
 watch(deviceStatusData ,(newData) => {
   initStatusChart()
 },{deep: true})
+
+watch(workshopDevices,(newData) => {
+
+}, {deep: true})
 </script>
 
 <template>
