@@ -37,7 +37,7 @@ const dispatchColumns = ref([
   { title: '故障描述', dataIndex: 'errorDesc', key: 'errorDesc', ellipsis: true ,width: 500},
   { title: '位置', dataIndex: 'location', key: 'location', width: 100 },
   { title: '开始时间', dataIndex: 'startTime', key: 'startTime', width: 120 },
-  { title: '持续时长', dataIndex: 'duration', key: 'duration', width: 100 },
+  // { title: '持续时长', dataIndex: 'duration', key: 'duration', width: 100 },
   { title: '指派人', dataIndex: 'assignee', key: 'assignee', width: 100 },
   { title: '指派人电话', dataIndex: 'assigneePhone', key: 'assigneePhone', width: 120 },
   { title: '预期完成时间', dataIndex: 'expectedTime', key: 'expectedTime', width: 120 },
@@ -148,10 +148,12 @@ async function confirmDispatch(){
           workOrderId: dispatchForm.value.workOrderId,
           assignee: dispatchForm.value.assignee,
           assigneePhone: dispatchForm.value.assigneePhone,
-          expectedTime: dispatchForm.value.expectedTime,
+          expectedTime: dispatchForm.value.expectedTime
+              ? dayjs(dispatchForm.value.expectedTime).format('YYYY-MM-DD HH:mm:ss')
+              : '',
           remark: dispatchForm.value.remark
         }
-
+        debugger
         emits('update:faultTableData', [updatedItem])
       }
 
@@ -249,6 +251,11 @@ function getStatusConfig(dispatchStatus) {
 //     console.error('解析消息失败:', error)
 //   }
 // }
+
+function getUserName(userId){
+  let user = userList.value.find(user => user.value === userId)
+  return user ? user.label : userId
+}
 
 onMounted(()=> {
   // addOnMessage('handleDispatch',dispatchAlarmListUpdate)
@@ -378,6 +385,10 @@ onUnmounted(()=>{
               {{ getStatusConfig(record.dispatchStatus).text }}
             </a-tag>
           </template>
+
+          <template v-else-if="column.key === 'assignee'">
+            {{ getUserName(record.assignee) }}
+          </template>
         </template>
       </a-table>
     </a-card>
@@ -385,13 +396,14 @@ onUnmounted(()=>{
     <!-- 派单对话框 -->
     <a-modal
       title="派单"
-      :ok-text="'确认派单'"
-      :cancel-text="'取消'"
+      :okText="'确认派单'"
+      :cancelText="'取消'"
       v-model:open="dispatchVisible"
       @cancel="closeDispatchModal"
       @ok="confirmDispatch"
       width="1000px"
-      :confirm-loading="false"
+      :confirmLoading="dispatchConfirmLoading"
+      :maskClosable="false"
     >
       <a-form
         ref="dispatchFormRef"

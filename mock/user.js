@@ -54,27 +54,27 @@ export default [
                             roles: ['admin']
                         },
                         {
-                            userid: '3',
+                            userid: 'zhangsan',
                             username: '张三',
                             roles: ['user']
                         },
                         {
-                            userid: '4',
+                            userid: 'lisi',
                             username: '李四',
                             roles: ['editor']
                         },
                         {
-                            userid: '5',
+                            userid: 'wangwu',
                             username: '王五',
                             roles: ['user']
                         },
                         {
-                            userid: '6',
+                            userid: 'zhaoliu',
                             username: '赵六',
                             roles: ['viewer']
                         },
                         {
-                            userid: '7',
+                            userid: 'liqi',
                             username: '孙七',
                             roles: ['editor']
                         }

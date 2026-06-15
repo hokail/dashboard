@@ -503,7 +503,7 @@ watch(workshopDevices,(newData) => {
     </div>
   </div>
 
-  <a-modal v-model:open="dispatchVisible" title="📋 工单派单管理" width="80%" :footer="null">
+  <a-modal v-model:open="dispatchVisible" title="📋 工单派单管理" width="80%" :footer="null" :maskClosable="false">
     <ReportDispatch :alarmList = "faultTableData" @update:faultTableData="handleFaultTableDataUpdate"></ReportDispatch>
   </a-modal>
 </template>
