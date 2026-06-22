@@ -301,7 +301,7 @@ watch(workshopDevices,(newData) => {
 
 }, {deep: true})
 
-const showDigitalBoard = ref(false)
+const showDigitalBoard = ref(true)
 </script>
 
 <template>

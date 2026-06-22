@@ -35,6 +35,51 @@
       </div>
     </div>
 
+    <div v-if="hoveredDevice" class="device-tooltip" :style="{ left: tooltipPosition.x + 15 + 'px', top: tooltipPosition.y + 15 + 'px' }">
+      <div class="tooltip-title">{{ hoveredDevice.name }}</div>
+      <div class="tooltip-info">
+        <div class="info-row">
+          <span class="label">ID:</span>
+          <span class="value">{{ hoveredDevice.id }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">类型:</span>
+          <span class="value">{{ hoveredDevice.type }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">状态:</span>
+          <span class="value" :class="hoveredDevice.status">{{ getStatusText(hoveredDevice.status) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="selectedDevice" class="device-detail-panel">
+      <div class="panel-header">
+        <h3>{{ selectedDevice.name }}</h3>
+        <button @click="selectedDevice = null" class="close-btn">×</button>
+      </div>
+      <div class="panel-content">
+        <div class="detail-item">
+          <span class="detail-label">设备编号</span>
+          <span class="detail-value">{{ selectedDevice.id }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">设备类型</span>
+          <span class="detail-value">{{ selectedDevice.type }}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">运行状态</span>
+          <span class="detail-value status-badge" :class="selectedDevice.status">
+            {{ getStatusText(selectedDevice.status) }}
+          </span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">位置坐标</span>
+          <span class="detail-value">({{ selectedDevice.originalX }}, {{ selectedDevice.originalY }})</span>
+        </div>
+      </div>
+    </div>
+
     <div ref="container" class="three-container"></div>
   </div>
 </template>
@@ -43,8 +88,14 @@
 import {ref, onMounted, onUnmounted, toRefs, watch, computed} from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import {boardStore} from "../stores/board.js";
-import {storeToRefs} from "pinia";
+import CursorControl from '../three/cursorControl.js'
+
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+
+
 
 const props = defineProps({
   deviceList: Array,
@@ -58,10 +109,14 @@ const {deviceList, alarmList} = toRefs(props)
 const container = ref(null)
 const currentTime = ref(new Date().toLocaleString('zh-CN'))
 
-let scene, camera, renderer, controls
+let scene, camera, renderer, controls,composer
 let container_mesh
 let renderList = []
 let timeInterval = null
+let cursorControl = null
+const hoveredDevice = ref(null)
+const selectedDevice = ref(null)
+const tooltipPosition = ref({ x: 0, y: 0 })
 
 const onlineCount = computed(() => {
   return deviceList.value.filter(d => d.status === 'online').length || 0
@@ -89,6 +144,9 @@ onUnmounted(() => {
   if (timeInterval) {
     clearInterval(timeInterval)
   }
+  if (cursorControl) {
+    cursorControl.dispose()
+  }
 })
 
 async function init() {
@@ -109,6 +167,10 @@ async function init() {
   renderer = new THREE.WebGLRenderer({antialias: true, alpha: true})
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.setPixelRatio(window.devicePixelRatio)
+
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; // 使用胶片色调映射，让高光更柔和
+  renderer.toneMappingExposure = 0.8; // 控制整体曝光，保持画面明亮
+
   container.value.appendChild(renderer.domElement)
 
   // 4. 添加轨道控制器
@@ -187,6 +249,31 @@ async function init() {
 
   // 7. 监听窗口大小变化
   window.addEventListener('resize', handleResize)
+
+
+
+  //设置辉光效果，原理：给物体设置自发光颜色和强度，UnrealBloomPass 会保留亮度值大于threshold的像素，所以让想要发光的物体的自发光强度大于threshold即可使该物体产生辉光效果
+  //UnrealBloomPass不同颜色通过计算公式得出的值不同，因此可能需要设置不同的自发光强度，确保产生辉光效果
+  composer = new EffectComposer(renderer);
+  composer.setSize(window.innerWidth, window.innerHeight);
+
+  // 渲染通道（必须）
+  const renderPass = new RenderPass(scene, camera);
+  composer.addPass(renderPass);
+
+  // 辉光通道（UnrealBloomPass）
+  // 参数: (分辨率, strength, radius, threshold)
+  const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.1,   // strength  - 辉光强度
+      0.2,   // radius    - 辉光半径（扩散范围）
+      0.5   // threshold - 亮度阈值（只有高于此值的像素发光）
+  );
+  composer.addPass(bloomPass);
+
+  // 输出通道（色彩校正，保证显示正确）
+  const outputPass = new OutputPass();
+  composer.addPass(outputPass);
 }
 
 function renderDeviceList(){
@@ -200,12 +287,13 @@ function renderDeviceList(){
     const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(2, 2, 2),
         new THREE.MeshPhysicalMaterial({
-          color: device.status === 'online' ? 0x00ff00 : 0xff0000,
+          color: 0xffffff ,
           transparent: false,
           opacity: 1,
           side: THREE.DoubleSide,
           roughness: 0.1,
           metalness: 0.1,
+          emissive: 0x000000,
         })
     )
 
@@ -218,6 +306,32 @@ function renderDeviceList(){
       originalY: device.y,
     }
 
+    const baseGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.08, 16)
+    const baseMat = new THREE.MeshPhysicalMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.2 , emissive: 0x000000,   })
+    const base = new THREE.Mesh(baseGeo, baseMat)
+    base.position.set(-0.7,1.04,-0.7)
+
+    mesh.add(base)
+
+    const poleGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.2, 8)
+    const poleMat = new THREE.MeshPhysicalMaterial({ color: 0x555555, metalness: 0.6, roughness: 0.3 , emissive: 0x000000,   })
+    const pole = new THREE.Mesh(poleGeo, poleMat)
+    pole.position.set(-0.7,1.14,-0.7)
+    mesh.add(pole)
+
+    const lightGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.8, 16)
+    const lightMat = new THREE.MeshPhysicalMaterial({
+      color: 0x00ff00,
+      emissive: 0x00ff00,        // 自发光的颜色
+      emissiveIntensity: 2.4,     // 高亮度，确保超过阈值
+      roughness: 0.25,
+      metalness: 0.4,
+    })
+    const lightMesh = new THREE.Mesh(lightGeo, lightMat)
+    lightMesh.position.set(-0.7,1.6,-0.7)
+    lightMesh.name = 'statusLight'
+    mesh.add(lightMesh)
+
     mesh.position.set(device.x *25/8 + 1.5, 1, device.y * 15/5 + 1.5)
 
     scene.add(mesh)
@@ -229,12 +343,17 @@ function updateAlarmDevice(){
   alarmList.value.forEach(alarm => {
     const mesh = renderList.find(mesh => mesh.deviceData.id === alarm.id)
     if (mesh) {
+      const statusLight = mesh.getObjectByName('statusLight')
       if(alarm.status === 'online'){
-        mesh.material.color.set(0x00ff00)
+        statusLight.material.color.set(0x00ff00)
+        statusLight.material.emissive.set(0x00ff00)
       }else if(alarm.status === 'warning'){
-        mesh.material.color.set(0xffff00)
+        statusLight.material.color.set(0xffff00)
+        statusLight.material.emissive.set(0xffff00)
       }else if(alarm.status === 'error'){
-        mesh.material.color.set(0xff0000)
+        statusLight.material.color.set(0xff0000)
+        statusLight.material.emissive.set(0xff0000)
+
       }
     }
   })
@@ -242,6 +361,11 @@ function updateAlarmDevice(){
 
 watch( deviceList,()=>{
   renderDeviceList()
+  if (cursorControl) {
+    cursorControl.dispose()
+  }
+
+  cursorControl = new CursorControl(camera, renderer, scene, renderList)
 })
 
 watch(alarmList,()=>{
@@ -252,6 +376,8 @@ function animate() {
   requestAnimationFrame(animate)
   controls.update()
   renderer.render(scene, camera)
+
+  composer.render();
 }
 
 function handleResize() {
@@ -280,6 +406,17 @@ function cleanup() {
     }
   })
 }
+
+function getStatusText(status) {
+  const statusMap = {
+    online: '在线',
+    offline: '离线',
+    warning: '警告',
+    error: '故障'
+  }
+  return statusMap[status] || '未知'
+}
+
 </script>
 
 <style scoped>
@@ -462,6 +599,174 @@ function cleanup() {
   border-color: #00ccff;
   box-shadow: 0 0 20px rgba(0, 170, 255, 0.5);
   transform: translateX(-3px);
+}
+
+.device-tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: rgba(10, 14, 39, 0.95);
+  border: 1px solid rgba(0, 170, 255, 0.5);
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 200px;
+  box-shadow: 0 4px 20px rgba(0, 170, 255, 0.3);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+.tooltip-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #00ccff;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 170, 255, 0.3);
+  padding-bottom: 6px;
+}
+
+.tooltip-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.info-row .label {
+  color: rgba(0, 204, 255, 0.6);
+}
+
+.info-row .value {
+  color: #fff;
+  font-weight: 600;
+}
+
+.info-row .value.online { color: #00ff88; }
+.info-row .value.warning { color: #ffaa00; }
+.info-row .value.error { color: #ff3366; }
+.info-row .value.offline { color: #888888; }
+
+.device-detail-panel {
+  position: fixed;
+  right: 20px;
+  top: 100px;
+  z-index: 1000;
+  width: 300px;
+  background: rgba(10, 14, 39, 0.95);
+  border: 1px solid rgba(0, 170, 255, 0.5);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 170, 255, 0.3);
+  backdrop-filter: blur(10px);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 170, 255, 0.3);
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #00ccff;
+  font-weight: 700;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: rgba(0, 204, 255, 0.6);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.close-btn:hover {
+  background: rgba(0, 170, 255, 0.2);
+  color: #00ccff;
+}
+
+.panel-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-label {
+  font-size: 11px;
+  color: rgba(0, 204, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.detail-value {
+  font-size: 14px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.status-badge.online {
+  background: rgba(0, 255, 136, 0.2);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.5);
+}
+
+.status-badge.warning {
+  background: rgba(255, 170, 0, 0.2);
+  color: #ffaa00;
+  border: 1px solid rgba(255, 170, 0, 0.5);
+}
+
+.status-badge.error {
+  background: rgba(255, 51, 102, 0.2);
+  color: #ff3366;
+  border: 1px solid rgba(255, 51, 102, 0.5);
+  animation: pulse 1.5s infinite;
+}
+
+.status-badge.offline {
+  background: rgba(136, 136, 136, 0.2);
+  color: #888888;
+  border: 1px solid rgba(136, 136, 136, 0.5);
 }
 
 .three-container {
