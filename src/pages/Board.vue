@@ -6,14 +6,8 @@ import * as echarts from 'echarts'
 import {useWebSocket} from "../websocket/index.js";
 import {boardStore} from "../stores/board";
 import {storeToRefs} from "pinia";
-
-import {socketStore} from "../stores/mockSocketStore.js";
 import ReportDispatch from "./ReportDispatch.vue";
 import DigitalBoard from "./DigitalBoard.vue";
-
-const useSocketState = socketStore()
-
-const {addOnMessage,removeOnMessage} = useSocketState
 
 const useBoardState = boardStore()
 
@@ -21,8 +15,37 @@ const {abnormalDevices,workshopDevices,faultTableData,keyMetrics,trendData,devic
 
 const {getBoardData} = useBoardState
 
+let ws = ref( null)
+function connectWebSocket() {
+  if( !ws.value){
+    ws.value = useWebSocket()
 
+    ws.value.onOpen(() => {
+      console.log('✅ WebSocket 连接成功')
+    })
 
+    ws.value.onMessage((event) => {
+      try {
+        console.log('✅ WebSocket 消息获取成功')
+        handleAlarmListUpdate(event)
+      } catch (error) {
+        console.error('解析消息失败:', error)
+      }
+    })
+
+    ws.value.onClose(() => {
+
+      console.log('❌ WebSocket 连接关闭')
+    })
+
+    ws.value.onError((error) => {
+      console.log('WebSocket 错误:', error)
+    })
+
+    ws.value.connect()
+  }
+
+}
 
 const statusChartRef = ref(null)
 const trendChartRef = ref(null)
@@ -278,7 +301,7 @@ let timeInterval = null
 
 
 onMounted(() => {
-  addOnMessage('handleBoard',handleAlarmListUpdate)
+  connectWebSocket()
 
   initStatusChart()
   initTrendChart()
@@ -295,7 +318,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  removeOnMessage('handleBoard')
+  if( ws.value){
+    ws.value.close()
+    ws.value = null
+  }
 
   statusChart.dispose()
   trendChart.dispose()

@@ -3,7 +3,6 @@ import {ref, computed, onMounted, onUnmounted, toRef} from 'vue'
 import dayjs from 'dayjs'
 import {reportStore} from '../stores/reportDispatch.js'
 import {storeToRefs} from "pinia";
-import {socketStore} from "../stores/mockSocketStore.js";
 import {message} from "ant-design-vue";
 
 const props = defineProps({
@@ -17,12 +16,7 @@ const emits = defineEmits(['update:faultTableData'])
 
 const alarmList = toRef(props,'alarmList')
 
-
-const useSocketState = socketStore()
-
-// let {addOnMessage,removeOnMessage} = useSocketState
 const useReportStore = reportStore()
-
 
 const {userList} = storeToRefs(useReportStore)
 

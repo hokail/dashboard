@@ -500,6 +500,9 @@ watch( deviceList,()=>{
     selectedDevice.value = cursorControl.selectedModel.deviceData
   })
 
+  cursorControl.addClearSelectedModelCallbacks( () => {
+    selectedDevice.value = null
+  })
 })
 
 watch(updateList,()=>{

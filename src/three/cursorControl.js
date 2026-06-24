@@ -37,7 +37,7 @@ class CursorControl {
         this.selectedModel = null;
 
         this.clickCallbacks = []
-
+        this.clearSelectedModelCallbacks = []
 
         this.init();
     }
@@ -87,14 +87,28 @@ class CursorControl {
             }
 
         } else {
-            if (this.selectedModel) {
-                this.restoreObjectMaterial()
-                this.selectedModel = null
-            }
+            this.clearSelectedModel()
         }
     }
 
     onRightClick(event){
+        this.clearSelectedModel()
+    }
+
+    addClearSelectedModelCallbacks(callback) {
+        this.clearSelectedModelCallbacks.push(callback)
+    }
+    removeClearSelectedModelCallbacks(callback) {
+        let index = this.clearSelectedModelCallbacks.indexOf(callback)
+        if(index !== -1) {
+            this.clearSelectedModelCallbacks.splice(index, 1)
+        }
+    }
+    clearSelectedModel(){
+        if(this.clearSelectedModelCallbacks.length){
+            this.clearSelectedModelCallbacks.forEach(cb => cb())
+        }
+
         if (this.selectedModel) {
             this.restoreObjectMaterial()
             this.selectedModel = null

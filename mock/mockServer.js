@@ -4,7 +4,7 @@
  * 用于开发和测试环境，提供设备实时状态数据推送
  */
 
-import { Server } from 'mock-socket'
+import {Server} from 'mock-socket'
 
 
 const errorCodes = [
@@ -20,65 +20,64 @@ const errorCodes = [
     { code: 'W-405', desc: '冷却液不足' }
 ]
 
+const deviceList =  [
+    { id: 'D001', name: 'CNC-01', type: 'CNC机床', status: 'online', x: 0, y: 0 },
+    { id: 'D002', name: 'CNC-02', type: 'CNC机床', status: 'online', x: 1, y: 0 },
+    { id: 'D003', name: 'CNC-03', type: 'CNC机床', status: 'error', x: 2, y: 0 },
+    { id: 'D004', name: 'CNC-04', type: 'CNC机床', status: 'online', x: 3, y: 0 },
+    { id: 'D005', name: 'CNC-05', type: 'CNC机床', status: 'online', x: 4, y: 0 },
+    { id: 'D006', name: 'CNC-06', type: 'CNC机床', status: 'online', x: 5, y: 0 },
+    { id: 'D007', name: 'CNC-07', type: 'CNC机床', status: 'online', x: 6, y: 0 },
+    { id: 'D008', name: 'CNC-08', type: 'CNC机床', status: 'offline', x: 7, y: 0 },
+
+    { id: 'D009', name: '注塑-01', type: '注塑机', status: 'online', x: 0, y: 1 },
+    { id: 'D010', name: '注塑-02', type: '注塑机', status: 'online', x: 1, y: 1 },
+    { id: 'D011', name: '注塑-03', type: '注塑机', status: 'warning', x: 2, y: 1 },
+    { id: 'D012', name: '注塑-04', type: '注塑机', status: 'online', x: 3, y: 1 },
+    { id: 'D013', name: '注塑-05', type: '注塑机', status: 'error', x: 4, y: 1 },
+    { id: 'D014', name: '注塑-06', type: '注塑机', status: 'online', x: 5, y: 1 },
+    { id: 'D015', name: '注塑-07', type: '注塑机', status: 'online', x: 6, y: 1 },
+    { id: 'D016', name: '注塑-08', type: '注塑机', status: 'online', x: 7, y: 1 },
+
+    { id: 'D017', name: '冲压-01', type: '冲压机', status: 'online', x: 0, y: 2 },
+    { id: 'D018', name: '冲压-02', type: '冲压机', status: 'online', x: 1, y: 2 },
+    { id: 'D019', name: '冲压-03', type: '冲压机', status: 'online', x: 2, y: 2 },
+    { id: 'D020', name: '冲压-04', type: '冲压机', status: 'online', x: 3, y: 2 },
+    { id: 'D021', name: '冲压-05', type: '冲压机', status: 'online', x: 4, y: 2 },
+    { id: 'D022', name: '冲压-06', type: '冲压机', status: 'online', x: 5, y: 2 },
+    { id: 'D023', name: '冲压-07', type: '冲压机', status: 'error', x: 6, y: 2 },
+    { id: 'D024', name: '冲压-08', type: '冲压机', status: 'online', x: 7, y: 2 },
+
+    { id: 'D025', name: '焊接-01', type: '焊接机器人', status: 'online', x: 0, y: 3 },
+    { id: 'D026', name: '焊接-02', type: '焊接机器人', status: 'online', x: 1, y: 3 },
+    { id: 'D027', name: '焊接-03', type: '焊接机器人', status: 'warning', x: 2, y: 3 },
+    { id: 'D028', name: '焊接-04', type: '焊接机器人', status: 'online', x: 3, y: 3 },
+    { id: 'D029', name: '焊接-05', type: '焊接机器人', status: 'online', x: 4, y: 3 },
+    { id: 'D030', name: '焊接-06', type: '焊接机器人', status: 'online', x: 5, y: 3 },
+    { id: 'D031', name: '焊接-07', type: '焊接机器人', status: 'online', x: 6, y: 3 },
+    { id: 'D032', name: '焊接-08', type: '焊接机器人', status: 'offline', x: 7, y: 3 },
+
+    { id: 'D033', name: '装配-01', type: '装配线', status: 'online', x: 0, y: 4 },
+    { id: 'D034', name: '装配-02', type: '装配线', status: 'online', x: 1, y: 4 },
+    { id: 'D035', name: '装配-03', type: '装配线', status: 'error', x: 2, y: 4 },
+    { id: 'D036', name: '装配-04', type: '装配线', status: 'online', x: 3, y: 4 },
+    { id: 'D037', name: '装配-05', type: '装配线', status: 'online', x: 4, y: 4 },
+    { id: 'D038', name: '装配-06', type: '装配线', status: 'online', x: 5, y: 4 },
+    { id: 'D039', name: '装配-07', type: '装配线', status: 'online', x: 6, y: 4 },
+    { id: 'D040', name: '装配-08', type: '装配线', status: 'online', x: 7, y: 4 }
+]
+
 class MockWebSocketServer {
     /**
      * 构造函数
      * @param {string} url - WebSocket 服务器地址，默认 ws://localhost:8080
      */
-    constructor(url = 'ws://localhost:8080') {
+    constructor(url = import.meta.env.VITE_WS_URL) {
         this.url = url
         this.server = null
         this.clients = new Set()
-
         // 模拟设备数据列表
-        this.devices = [
-            { id: 'D001', name: 'CNC-01', type: 'CNC机床', status: 'online', x: 0, y: 0 },
-            { id: 'D002', name: 'CNC-02', type: 'CNC机床', status: 'online', x: 1, y: 0 },
-            { id: 'D003', name: 'CNC-03', type: 'CNC机床', status: 'error', x: 2, y: 0 },
-            { id: 'D004', name: 'CNC-04', type: 'CNC机床', status: 'online', x: 3, y: 0 },
-            { id: 'D005', name: 'CNC-05', type: 'CNC机床', status: 'online', x: 4, y: 0 },
-            { id: 'D006', name: 'CNC-06', type: 'CNC机床', status: 'online', x: 5, y: 0 },
-            { id: 'D007', name: 'CNC-07', type: 'CNC机床', status: 'online', x: 6, y: 0 },
-            { id: 'D008', name: 'CNC-08', type: 'CNC机床', status: 'offline', x: 7, y: 0 },
-
-            { id: 'D009', name: '注塑-01', type: '注塑机', status: 'online', x: 0, y: 1 },
-            { id: 'D010', name: '注塑-02', type: '注塑机', status: 'online', x: 1, y: 1 },
-            { id: 'D011', name: '注塑-03', type: '注塑机', status: 'warning', x: 2, y: 1 },
-            { id: 'D012', name: '注塑-04', type: '注塑机', status: 'online', x: 3, y: 1 },
-            { id: 'D013', name: '注塑-05', type: '注塑机', status: 'error', x: 4, y: 1 },
-            { id: 'D014', name: '注塑-06', type: '注塑机', status: 'online', x: 5, y: 1 },
-            { id: 'D015', name: '注塑-07', type: '注塑机', status: 'online', x: 6, y: 1 },
-            { id: 'D016', name: '注塑-08', type: '注塑机', status: 'online', x: 7, y: 1 },
-
-            { id: 'D017', name: '冲压-01', type: '冲压机', status: 'online', x: 0, y: 2 },
-            { id: 'D018', name: '冲压-02', type: '冲压机', status: 'online', x: 1, y: 2 },
-            { id: 'D019', name: '冲压-03', type: '冲压机', status: 'online', x: 2, y: 2 },
-            { id: 'D020', name: '冲压-04', type: '冲压机', status: 'online', x: 3, y: 2 },
-            { id: 'D021', name: '冲压-05', type: '冲压机', status: 'online', x: 4, y: 2 },
-            { id: 'D022', name: '冲压-06', type: '冲压机', status: 'online', x: 5, y: 2 },
-            { id: 'D023', name: '冲压-07', type: '冲压机', status: 'error', x: 6, y: 2 },
-            { id: 'D024', name: '冲压-08', type: '冲压机', status: 'online', x: 7, y: 2 },
-
-            { id: 'D025', name: '焊接-01', type: '焊接机器人', status: 'online', x: 0, y: 3 },
-            { id: 'D026', name: '焊接-02', type: '焊接机器人', status: 'online', x: 1, y: 3 },
-            { id: 'D027', name: '焊接-03', type: '焊接机器人', status: 'warning', x: 2, y: 3 },
-            { id: 'D028', name: '焊接-04', type: '焊接机器人', status: 'online', x: 3, y: 3 },
-            { id: 'D029', name: '焊接-05', type: '焊接机器人', status: 'online', x: 4, y: 3 },
-            { id: 'D030', name: '焊接-06', type: '焊接机器人', status: 'online', x: 5, y: 3 },
-            { id: 'D031', name: '焊接-07', type: '焊接机器人', status: 'online', x: 6, y: 3 },
-            { id: 'D032', name: '焊接-08', type: '焊接机器人', status: 'offline', x: 7, y: 3 },
-
-            { id: 'D033', name: '装配-01', type: '装配线', status: 'online', x: 0, y: 4 },
-            { id: 'D034', name: '装配-02', type: '装配线', status: 'online', x: 1, y: 4 },
-            { id: 'D035', name: '装配-03', type: '装配线', status: 'error', x: 2, y: 4 },
-            { id: 'D036', name: '装配-04', type: '装配线', status: 'online', x: 3, y: 4 },
-            { id: 'D037', name: '装配-05', type: '装配线', status: 'online', x: 4, y: 4 },
-            { id: 'D038', name: '装配-06', type: '装配线', status: 'online', x: 5, y: 4 },
-            { id: 'D039', name: '装配-07', type: '装配线', status: 'online', x: 6, y: 4 },
-            { id: 'D040', name: '装配-08', type: '装配线', status: 'online', x: 7, y: 4 }
-        ]
-
-        this.pushTimer = null
+        this.devices = deviceList
     }
 
     /**
@@ -113,9 +112,6 @@ class MockWebSocketServer {
         // 将客户端添加到集合中管理
         this.clients.add(socket)
 
-        // 发送初始设备数据
-        this.sendInitialData(socket)
-
         // 启动定时数据推送
         this.startPushingData(socket)
 
@@ -133,28 +129,6 @@ class MockWebSocketServer {
     }
 
     /**
-     * 发送初始设备数据给客户端
-     * 包含所有设备的当前状态和统计信息
-     * @param {Object} socket - WebSocket 套接字对象
-     */
-    sendInitialData(socket) {
-        const message = JSON.stringify({
-            type: 'init',
-            timestamp: Date.now(),
-            data: {
-                total: this.devices.length,
-                online: this.devices.filter(d => d.status === 'online').length,
-                offline: this.devices.filter(d => d.status === 'offline').length,
-                warning: this.devices.filter(d => d.status === 'warning').length,
-                devices: JSON.parse(JSON.stringify(this.devices))
-            }
-        })
-
-        socket.send(message)
-        console.log('📤 已发送初始设备数据')
-    }
-
-    /**
      * 启动定时数据推送
      * 每 3 秒向客户端推送一次设备状态更新
      * @param {Object} socket - WebSocket 套接字对象
@@ -162,12 +136,10 @@ class MockWebSocketServer {
     startPushingData(socket) {
         console.log('🚀 启动定时数据推送')
         // 设置定时器，每 3 秒推送一次
-        const timer = setInterval(() => {
+        // 将定时器保存到 socket 对象上，方便后续清理
+        socket.pushTimer = setInterval(() => {
             this.pushDeviceUpdate(socket)
         }, 3000)
-
-        // 将定时器保存到 socket 对象上，方便后续清理
-        socket._pushTimer = timer
     }
 
     /**
@@ -176,9 +148,9 @@ class MockWebSocketServer {
      * @param {Object} socket - WebSocket 套接字对象
      */
     stopPushingData(socket) {
-        if (socket._pushTimer) {
-            clearInterval(socket._pushTimer)
-            socket._pushTimer = null
+        if (socket.pushTimer) {
+            clearInterval(socket.pushTimer)
+            socket.pushTimer = null
         }
     }
 
@@ -301,11 +273,9 @@ let mockServerInstance = null
  * @param {string} url - WebSocket 服务器地址
  * @returns {MockWebSocketServer} MockWebSocketServer 实例
  */
-export function createMockServer(url = 'ws://localhost:8080') {
+export function createMockServer(url = import.meta.env.VITE_WS_URL ) {
     if (!mockServerInstance) {
         mockServerInstance = new MockWebSocketServer(url)
     }
     return mockServerInstance
 }
-
-export default MockWebSocketServer

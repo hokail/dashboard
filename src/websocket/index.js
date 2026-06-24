@@ -1,8 +1,5 @@
-import { ref } from 'vue'
-
 const WS_URL = import.meta.env.DEV && import.meta.env.VITE_USE_WEBSOCKET_MOCK === 'true'
-    ? 'ws://localhost:8080'
-    : import.meta.env.VITE_WS_URL || 'ws://your-production-ws-server.com'
+    ? import.meta.env.VITE_WS_URL : import.meta.env.VITE_PROD_URL
 
 class HeartbeatWebSocket {
   constructor(url = WS_URL, options = {}) {
@@ -25,7 +22,6 @@ class HeartbeatWebSocket {
     this.onOpenCallback = null
     this.onCloseCallback = null
     this.onErrorCallback = null
-    this.onReconnectCallback = null
   }
 
   connect() {
@@ -140,9 +136,6 @@ class HeartbeatWebSocket {
     console.log(`准备第 ${this.reconnectAttempts} 次重连，${Math.round(delay / 1000)} 秒后重试...`)
 
     this.reconnectTimer = setTimeout(() => {
-      if (this.onReconnectCallback) {
-        this.onReconnectCallback(this.reconnectAttempts)
-      }
       this.connect()
     }, delay)
   }
@@ -150,16 +143,13 @@ class HeartbeatWebSocket {
   send(data) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.error('WebSocket 未连接，无法发送消息')
-      return false
+      return
     }
 
     try {
-      const message = typeof data === 'string' ? data : JSON.stringify(data)
-      this.ws.send(message)
-      return true
+      this.ws.send(JSON.stringify(data))
     } catch (error) {
       console.error('发送消息失败', error)
-      return false
     }
   }
 
@@ -178,22 +168,6 @@ class HeartbeatWebSocket {
     }
   }
 
-  getState() {
-    if (!this.ws) return 'CLOSED'
-
-    switch (this.ws.readyState) {
-      case WebSocket.CONNECTING:
-        return 'CONNECTING'
-      case WebSocket.OPEN:
-        return 'OPEN'
-      case WebSocket.CLOSING:
-        return 'CLOSING'
-      case WebSocket.CLOSED:
-        return 'CLOSED'
-      default:
-        return 'UNKNOWN'
-    }
-  }
 
   onMessage(callback) {
     this.onMessageCallback = callback
@@ -212,11 +186,6 @@ class HeartbeatWebSocket {
 
   onError(callback) {
     this.onErrorCallback = callback
-    return this
-  }
-
-  onReconnect(callback) {
-    this.onReconnectCallback = callback
     return this
   }
 }
