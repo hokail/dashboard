@@ -1,6 +1,6 @@
 <script setup>
 //24小时趋势图，关键指标为静态数据
-import {ref, computed, onMounted, onUnmounted, watch} from 'vue'
+import {ref, computed, onMounted, onUnmounted, watch, inject} from 'vue'
 import * as echarts from 'echarts'
 
 import {useWebSocket} from "../websocket/index.js";
@@ -301,6 +301,8 @@ function handleFaultTableDataUpdate(records){
 const selectedDevice = ref(null)
 const deviceHistoryVisible = ref(false)
 
+
+
 function showDeviceHistoryData(device){
   selectedDevice.value = device
   deviceHistoryVisible.value = true
@@ -312,7 +314,14 @@ function closeDeviceHistoryData(){
   deviceHistoryVisible.value = false
 }
 
+const deviceHistoryModalIsFull = ref(false)
+
+function deviceHistoryModalFullScreen() {
+  deviceHistoryModalIsFull.value = !deviceHistoryModalIsFull.value
+}
+
 let timeInterval = null
+
 
 
 onMounted(() => {
@@ -332,6 +341,8 @@ onMounted(() => {
   })
 })
 
+
+
 onUnmounted(() => {
   if( ws.value){
     ws.value.close()
@@ -344,8 +355,6 @@ onUnmounted(() => {
   if (timeInterval) {
     clearInterval(timeInterval)
   }
-
-
 })
 
 watch( trendData ,(newData) => {
@@ -574,8 +583,19 @@ const showDigitalBoard = ref(false)
   <a-modal v-model:open="dispatchVisible" title="📋 工单派单管理" width="80%" :footer="null" :maskClosable="false">
     <ReportDispatch :alarmList = "faultTableData" @update:faultTableData="handleFaultTableDataUpdate"></ReportDispatch>
   </a-modal>
-  <a-modal v-model:open="deviceHistoryVisible" title="📋 设备历史数据" width="80%" :footer="null" :maskClosable="false" @cancel="closeDeviceHistoryData">
-    <DeviceHistory  :device="selectedDevice" ></DeviceHistory>
+
+  <!-- 对话框开启 destroyOnClose，保证关闭对话框后，销毁画布-->
+  <a-modal
+      class="device-history-modal"
+      v-model:open="deviceHistoryVisible"
+      title="📋 设备历史数据" width="80%"
+      :footer="null"
+      destroyOnClose
+      :maskClosable="false"
+      @cancel="closeDeviceHistoryData"
+      :closable="!deviceHistoryModalIsFull "
+  >
+    <DeviceHistory  :device="selectedDevice" ref="deviceHistory"  @fullSreen="deviceHistoryModalFullScreen"></DeviceHistory>
   </a-modal>
 </template>
 

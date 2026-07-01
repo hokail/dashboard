@@ -1,7 +1,7 @@
 <script setup>
 
-import { Graph, Shape } from '@antv/x6'
-import {onMounted, defineComponent, toRefs, watch} from "vue";
+import { Graph, MiniMap,Export   } from '@antv/x6'
+import {onMounted, defineComponent, toRefs, watch, onUnmounted, onBeforeUnmount, nextTick, provide} from "vue";
 import { register, getTeleport } from '@antv/x6-vue-shape'
 import DeviceHistoryNode from "../../../graph/nodes/DeviceHistoryNode.vue";
 import {registerDeviceHistoryEdge, registerDeviceHistoryNode} from "../../../graph/nodes/register.js";
@@ -18,15 +18,21 @@ const props = defineProps({
   edges: { type: Array, required: true },
 })
 
+// graph和minimap外部定义，用于销毁graph和minimap
+let graph = null
+let minimap = null
+
 const {nodes,edges} = toRefs(props);
 
 function init(){
-  const data = {
-    nodes:nodes.value,
-    edges:edges.value
-  }
 
-  const graph = new Graph({
+  minimap = new MiniMap({
+    container: document.getElementById('minimap'),
+    width: 200,
+    height: 160,
+    padding: 0,
+  })
+  graph = new Graph({
     container: document.getElementById('container'),
     autoResize: true,
     connecting: {
@@ -79,26 +85,69 @@ function init(){
   //     });
   //   }
   // });
+  graph.use(minimap)
+  graph.use(new Export())
+}
 
+function updateGraph(){
+  const data = {
+    nodes:nodes.value,
+    edges:edges.value
+  }
   graph.fromJSON(data) // 渲染元素
   graph.centerContent() // 居中显示
 }
 
+function exportGraph() {
+  graph.exportPNG(Date.now(),{
+    padding: 20,
+  })
+}
 
-
-watch(nodes, () => {
+onMounted(() => {
   init()
 })
 
+function destroyGraph(){
+  if(minimap){
+    minimap.dispose()
+    minimap = null
+  }
+  if(graph){
+    graph.dispose()
+    graph = null
+  }
+}
 
+watch(nodes, () => {
+  nextTick(()=>{
+    updateGraph()
+  })
+})
+
+onUnmounted(()=>{
+  destroyGraph()
+})
+
+defineExpose({
+  exportGraph
+})
 
 </script>
 
 <template>
   <div id="container"></div>
+  <div class="minimap" id="minimap"></div>
   <TeleportContainer/>
 </template>
 
 <style scoped>
-
+.minimap{
+  position: absolute;
+  top: 80px;
+  right: 30px;
+  z-index: 1;
+  border: 1px solid #dcdfe6;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
 </style>

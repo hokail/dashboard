@@ -5,10 +5,14 @@ import Graph from "./components/Graph.vue";
 import {onMounted, ref, watch,toRefs} from "vue";
 import {boardStore} from "../../stores/board.js";
 import {storeToRefs} from "pinia";
-dayjs.locale('zh-cn')
+import {getTimeDiff, isInRange} from "../../utils/index.js";
+
 dayjs.extend(duration)
 
+const emit = defineEmits(['fullSreen'])
+
 const useBoardState = boardStore()
+const {getDeviceHistoryData} = useBoardState
 const {deviceHistory} = storeToRefs(useBoardState)
 
 const props = defineProps({
@@ -77,31 +81,6 @@ watch(deviceHistory, (newVal) => {
   setGraphData(newVal)
 });
 
-//格式化时间间隔
-function getTimeDiff(startStr, endStr) {
-  const diffMs = dayjs(endStr).diff(dayjs(startStr))
-  const dur = dayjs.duration(diffMs)
-
-  return {
-    days: dur.asDays().toFixed(0),
-    hours: dur.hours(),
-    minutes: dur.minutes(),
-    seconds: dur.seconds(),
-    milliseconds: dur.milliseconds(),
-
-    // 格式化输出
-    formatted: `${dur.asDays().toFixed(0)}天${dur.hours()}小时${dur.minutes()}分钟${dur.seconds()}秒`
-  }
-}
-
-// 判断时间是否在范围内
-function isInRange(target, start, end) {
-  if (!start || !end) return true
-  return (
-      (target.isAfter(start) || target.isSame(start)) &&
-      (target.isBefore(end) || target.isSame(end))
-  )
-}
 
 function handleSelectedConditionChange() {
   let filteredNodes = []
@@ -119,10 +98,26 @@ function handleSelectedConditionChange() {
 
 const selectedDate = ref([])
 
+const deviceHistoryCardIsFull = ref(false)
+
+function handleFullScreen() {
+  emit('fullSreen')
+  deviceHistoryCardIsFull.value = !deviceHistoryCardIsFull.value
+
+}
+const graph = ref(null)
+function handleExport(){
+  graph.value.exportGraph()
+}
+
+function handleRefresh(){
+  getDeviceHistoryData(device.value)
+}
+
 </script>
 
 <template>
-  <a-card>
+  <a-card :class="{'device-history-card': deviceHistoryCardIsFull}">
     <template #title>
       <div class="device-title">设备历史</div>
       <div class="device-info">
@@ -143,19 +138,26 @@ const selectedDate = ref([])
           时间范围：<a-range-picker v-model:value="selectedDate"  allowClaer  @change="handleSelectedConditionChange" />
         </div>
 
-        <a-button>刷新</a-button>
-        <a-button>导出</a-button>
-        <a-button>全屏</a-button>
+        <a-button @click="handleRefresh">刷新</a-button>
+        <a-button @click="handleExport">导出</a-button>
+        <a-button  @click="handleFullScreen">{{ !deviceHistoryCardIsFull ? '全屏':'取消全屏' }}</a-button>
       </a-space>
     </template>
     <div class="graph-modal" >
-      <Graph :nodes="nodes" :edges="edges"></Graph>
+      <Graph :nodes="nodes" :edges="edges" ref="graph"></Graph>
     </div>
 
   </a-card>
 </template>
 
 <style scoped>
+.device-history-card{
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 100vw;
+}
 .graph-modal{
   width: 100%;
   height: 900px;
