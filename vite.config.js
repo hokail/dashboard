@@ -20,5 +20,5 @@ export default defineConfig({
       enable: true,
     }),
   ],
-  base: '/'
+  base: '/dashboard-management/'
 })
