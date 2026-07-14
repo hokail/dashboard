@@ -19,5 +19,13 @@ if (import.meta.env.DEV && import.meta.env.VITE_USE_WEBSOCKET_MOCK === 'true') {
     })
 }
 
+// 生产环境（GitHub Pages）启用 API mock 拦截器：
+if (!import.meta.env.DEV) {
+    import('./api/mockInterceptor.js')
+    import('./websocket/mockClient.js').then(({ enableMockWebSocket }) => {
+        enableMockWebSocket()
+    })
+}
+
 const app = createApp(App)
 app.use(router).use(pinia).use(directive).use(Antd, { locale: zhCN }).mount('#app')
