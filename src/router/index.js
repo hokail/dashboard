@@ -1,4 +1,4 @@
-import { createWebHistory, createRouter } from 'vue-router'
+import { createWebHistory, createRouter ,createWebHashHistory} from 'vue-router'
 import {permissionStore} from "../stores/permission.js";
 import {storeToRefs} from "pinia";
 
